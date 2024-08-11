@@ -1,34 +1,41 @@
+// index.js
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const session = require('express-session')
-const customer_routes = require('./router/auth_users.js').authenticated;
-const genl_routes = require('./router/general.js').general;
+const session = require('express-session');
+const general = require('./router/general.js');
+const customerRouter = require('./router/auth_users.js');
 
 const app = express();
+const PORT = 5000;
+const SECRET_KEY = 'my_super_secret_key_for_jwt_123!@#'; 
 
 app.use(express.json());
 
-app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
+// session
+app.use(session({
+    secret: "fingerprint_customer",
+    resave: false,
+    saveUninitialized: true
+}));
 
+// Middleware
 app.use("/customer/auth/*", function auth(req, res, next) {
-    if (req.session.authorization) {
-        const token = req.session.authorization['accessToken'];
-        jwt.verify(token, "access", (err, user) => {
+    if (req.headers.authorization) {
+        const token = req.headers.authorization.split(' ')[1];
+        jwt.verify(token, SECRET_KEY, (err, user) => {
             if (!err) {
                 req.user = user;
                 next();
             } else {
-                return res.status(403).json({ message: "User not authenticated" });
+                return res.status(403).json({ message: "Token inválido" });
             }
         });
     } else {
-        return res.status(403).json({ message: "User not logged in" });
+        return res.status(401).json({ message: "Usuario no autenticado" });
     }
 });
- 
-const PORT =5000;
 
-app.use("/customer", customer_routes);
-app.use("/", genl_routes);
+app.use('/customer', customerRouter);
+app.use("/", general.general);
 
-app.listen(PORT,()=>console.log("Server is running"));
+app.listen(PORT, () => console.log(`Server is running: ${PORT}`));
